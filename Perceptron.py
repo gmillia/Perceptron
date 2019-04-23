@@ -1,5 +1,4 @@
 import numpy as np
-#import pylab as pl
 import matplotlib.pyplot as plt
 
 #Entry point into the program
@@ -7,17 +6,18 @@ def main():
 	epochs = 30
 	learning = 0.1
 	batch = 300
-	#load data into "matrix"
+	#load data into matrices
 	pre_data = np.loadtxt(open("mnist_train.csv", "rb"), delimiter=",", skiprows=1)
 	pret_data = np.loadtxt(open("mnist_test.csv", "rb"), delimiter=",", skiprows=1)
 	t = pre_data[:,0:1]  #cut first column (targets) 
 	tt = pret_data[:,0:1]  #cut first column (targets) from test data
 
-	#get main data
+	#get main (training data)
 	data = getData(pre_data)
 	targets = getTargets(t, data.shape[0])
 	weights = getWeights(data.shape[1])
 
+	#returns multiple things
 	tup = train(epochs, data, weights, targets, learning, batch)
 
 	weights = tup[1]
@@ -30,20 +30,22 @@ def main():
 	test_rows = testData.shape[0]
 	testTargets = getTargets(tt, test_rows)
 
+	#gets correct % prediction for each epoch (list)
 	testCorrect = test(epochs, testData, trainWeights, testTargets, batch)
 
-	#printPct(tup[0], batch)
+	#prints accuracy graph for training and test data
 	accuracyGraph(trainCorrect, batch, trainEpochs, epochs, testCorrect)
 
+	#printf confusion matrix for the test data
 	confMat(testData, testTargets, weights, epochs, batch, learning)
 
-def printPct(correct, batch):
-	print("Correct: ", (correct / batch) * 100, "%")
-
+#helper function to create initial weights matrix
 def getWeights(cols):
 	weights = np.random.uniform(low=-0.5, high = 0.5, size=(cols, 10))
 	return weights
 
+#helper function that creates a onehot matrix of targets from 
+#stripped first column (targets)
 def getTargets(t, rows):
 	targets = np.zeros(shape=(rows, 10), dtype = int)
 	rN = 0
@@ -53,6 +55,8 @@ def getTargets(t, rows):
 
 	return targets
 
+#helper function that strips data matrix from the first column (targets)
+#and appends bias vector to the end, as well as optimizes data
 def getData(pre_data):
 	#remove first column from the input data (targets)
 	data = np.delete(pre_data, 0, 1)
@@ -68,6 +72,8 @@ def getData(pre_data):
 
 	return data
 
+#helper function that tests input data on the latest weights
+#and returns list of orrect predictions per epoch
 def test(epochs, data, weightsList, targets, batch):
 	correctList = []
 	correct = 0;
@@ -88,9 +94,11 @@ def test(epochs, data, weightsList, targets, batch):
 		pct = (correct / data.shape[0])*100
 		correctList.append(pct)
 
-
 	return correctList
 
+#helper function that trains the network
+#returns list with percent of correct prediction, latest weights, 
+#list of epochs, and list of weights computed at each epoch
 def train(epochs, data, weights, targets, learning, batch):
 	weightsList = []
 	weightsList.append(weights)
@@ -99,24 +107,19 @@ def train(epochs, data, weights, targets, learning, batch):
 	correct = 0
 	incorrect = 0
 	pct = 0
-	#for each row compute dot product, compare, and change weights (if needed)
-	#for each epoch
+
 	for epoch in range(0, epochs):
 		correct = 0
 		print("Epoch:", (epoch+1), "/", epochs)
 		for i in range(0, batch):
 			print("Iteration:" ,i+1, "/", batch)
-			#row = data[i:i+1,:]  #grab current row: 1x785
-			activations = np.dot(data, weights)  #vector of sums: 1x10
-			result = np.where(activations > 0, 1, 0)  #vector of 1s and 0s: 1x10
-
+			activations = np.dot(data, weights)  #vector of sums: 60k x 10
+			result = np.where(activations > 0, 1, 0)  #vector of 1s and 0s: 60lx10
 
 			#result [60k x 10] - targets [60 x 10] = [60k x 10]
 			#weights [785 x 10] 
-			#print(np.dot(row.T, result - targets[i:i+1,:]).shape)
 			weights = weights - (learning * np.dot(data.T, result - targets))
 
-			#for j in range(data.shape[0]):
 			out = result[i:i+1,:]
 			exp = targets[i:i+1,:]
 			same = np.array_equal(out, exp)
@@ -126,25 +129,16 @@ def train(epochs, data, weights, targets, learning, batch):
 			else:
 				incorrect+=1
 
-		#accuracyGraph(correct, batch, epoch)
 		pct = (correct / batch)*100
 
-		"""
-		if epoch > 0 and pct < correctList[epoch-1]:
-			weightsList.append(weightsList[epoch-1])
-			correctList.append(correctList[epoch-1])
-		else:
-			weightsList.append(weights)
-			correctList.append(pct)
-
-		#correctList.append(pct)
-		"""
 		correctList.append(pct)
 		weightsList.append(weights)
 		epochList.append(epoch)
 
 	return (correctList, weights, epochList, weightsList)
 
+#helper function that graphs accuracy per epoch for both training
+#and testing data
 def accuracyGraph(correctList, batch, epochList,epochs, testCorrect):
 	plt.title("Accuracy Graph")
 	plt.xlabel("Epoch")
@@ -156,6 +150,8 @@ def accuracyGraph(correctList, batch, epochList,epochs, testCorrect):
 	plt.legend()
 	plt.show()
 
+#helper function that computes the confusion matrix for the testing
+#data using the latest (most accurate) weights
 def confMat(data, targets, weights, epochs, batch, learning):
 	#create conf matrix
 	size = targets.shape[1]
